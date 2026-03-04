@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 )
 
 // Init configures the global slog logger for structured JSON output.
@@ -24,8 +25,23 @@ func Event(ctx context.Context, event string, attrs ...slog.Attr) {
 	slog.InfoContext(ctx, event, args...)
 }
 
-// SourceIP extracts the remote IP and port from an HTTP request.
+// SourceIP extracts the real client IP from an HTTP request.
+// Checks Cf-Connecting-Ip (Cloudflare), X-Real-Ip, X-Forwarded-For, then RemoteAddr.
 func SourceIP(r *http.Request) (string, string) {
+	// Cloudflare sets this to the true client IP.
+	if ip := r.Header.Get("Cf-Connecting-Ip"); ip != "" {
+		return ip, ""
+	}
+	if ip := r.Header.Get("X-Real-Ip"); ip != "" {
+		return ip, ""
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// First IP in the chain is the client.
+		if i := strings.Index(xff, ","); i != -1 {
+			return strings.TrimSpace(xff[:i]), ""
+		}
+		return strings.TrimSpace(xff), ""
+	}
 	host, port, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr, ""
