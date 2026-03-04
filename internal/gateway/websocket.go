@@ -39,12 +39,18 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	sess := simulation.NewSession()
 	defer simulation.RemoveSession(sess.ID)
 
-	logging.Event(r.Context(), "ws_connect",
+	// GeoIP enrichment.
+	geo := s.Geo.Lookup(srcIP)
+
+	wsGeoAttrs := geo.Attrs()
+	connectAttrs := []slog.Attr{
 		slog.String("src_ip", srcIP),
 		slog.String("src_port", srcPort),
 		slog.String("session_id", sess.ID),
 		slog.String("user_agent", r.UserAgent()),
-	)
+	}
+	connectAttrs = append(connectAttrs, wsGeoAttrs...)
+	logging.Event(r.Context(), "ws_connect", connectAttrs...)
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		InsecureSkipVerify: true, // Accept any origin.
@@ -133,7 +139,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		"platform": connectReq.Payload.Client.Platform,
 	}
 
-	logging.Event(ctx, "ws_auth_attempt",
+	authAttrs := []slog.Attr{
 		slog.String("src_ip", srcIP),
 		slog.String("src_port", srcPort),
 		slog.String("session_id", sess.ID),
@@ -143,7 +149,9 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		slog.Any("client_info", sess.ClientInfo),
 		slog.String("user_agent", r.UserAgent()),
 		slog.String("raw_payload", rawPayload),
-	)
+	}
+	authAttrs = append(authAttrs, wsGeoAttrs...)
+	logging.Event(ctx, "ws_auth_attempt", authAttrs...)
 
 	// Check for prompt injection in auth payload.
 	if detected, pattern := simulation.DetectPromptInjection(rawPayload); detected {

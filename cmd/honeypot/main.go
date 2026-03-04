@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 
 	"openclaw-honeypot/internal/gateway"
+	"openclaw-honeypot/internal/geoip"
 	"openclaw-honeypot/internal/logging"
 )
 
@@ -16,6 +18,8 @@ func main() {
 
 	logging.Init()
 
-	srv := gateway.NewServer(*addr)
+	geo := geoip.NewClient(os.Getenv("IPINFO_TOKEN"))
+
+	srv := gateway.NewServer(*addr, geo)
 	log.Fatal(srv.ListenAndServe())
 }

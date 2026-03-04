@@ -4,16 +4,19 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"openclaw-honeypot/internal/geoip"
 )
 
 // Server is the OpenClaw honeypot gateway.
 type Server struct {
 	Addr string
+	Geo  *geoip.Client
 }
 
 // NewServer creates a gateway server on the given address.
-func NewServer(addr string) *Server {
-	return &Server{Addr: addr}
+func NewServer(addr string, geo *geoip.Client) *Server {
+	return &Server{Addr: addr, Geo: geo}
 }
 
 // ListenAndServe starts the HTTP + WebSocket server.

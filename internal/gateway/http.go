@@ -16,6 +16,9 @@ import (
 func (s *Server) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	srcIP, srcPort := logging.SourceIP(r)
 
+	// GeoIP enrichment.
+	geo := s.Geo.Lookup(srcIP)
+
 	// Log every HTTP request.
 	attrs := []slog.Attr{
 		slog.String("src_ip", srcIP),
@@ -25,6 +28,7 @@ func (s *Server) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.String("user_agent", r.UserAgent()),
 		slog.String("host", r.Host),
 	}
+	attrs = append(attrs, geo.Attrs()...)
 
 	// Read body for POST/PUT/PATCH.
 	var body string
